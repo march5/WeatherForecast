@@ -1,0 +1,85 @@
+﻿@page "/fetchdata"
+@inject IJSRuntime JS
+
+<PageTitle>Weather forecast</PageTitle>
+
+@using WeatherForecast.Data.Models
+@using WeatherForecast.Data.Controllers
+@using WeatherForecast.Data.Validators
+
+<h1>Weather forecast</h1>
+
+<p>This component demonstrates fetching data from a service.</p>
+
+<EditForm Model="@coordinates" OnSubmit="@HandleSubmit">
+    <p>Coordinates: </p>
+    <InputText id="latitude" @bind-Value=coordinates.Latitude></InputText>
+    <InputText id="longitude" @bind-Value=coordinates.Longitude></InputText>
+    <button type="submit">Submit</button>
+</EditForm>
+
+<p>@inputMessage</p>
+
+@if (dailyForecast == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Temp. @dailyForecast.Unit</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in dailyForecast.DailyTempAvg)
+            {
+                <tr>
+                    <td>@forecast.Key</td>
+                    <td>@forecast.Value</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-primary btn-lg" style="margin:10px" @onclick="DownloadFileFromStream">Download Forecast file</button>
+}
+
+@code {
+    private Coordinates coordinates = new();
+    private DailyForecast? dailyForecast;
+    private string inputMessage = "";
+
+    private async Task HandleSubmit()
+    {
+        if (CoordinatesValidator.ValidateCoordinates(coordinates.Latitude, coordinates.Longitude))
+        {
+            var forecastResponse = await ResponseController.GetResponse(coordinates);
+            var responseBody = ResponseController.DeserializeResponse(forecastResponse);
+            dailyForecast = ForecastController.GetDailyAvgTemperature(responseBody);
+        }
+        else
+        {
+            inputMessage = "Please input valid coordinates";
+        }
+    }
+
+    private Stream GetFileStream()
+    {
+        var binaryData = ForecastController.GetDailyAvgTemperatureAsBytes(dailyForecast);
+        var fileStream = new MemoryStream(binaryData);
+
+        return fileStream;
+    }
+
+    private async Task DownloadFileFromStream()
+    {
+        var fileStream = GetFileStream();
+        var fileName = "forecast.json";
+
+        using var streamRef = new DotNetStreamReference(stream: fileStream);
+
+        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+    }
+}
