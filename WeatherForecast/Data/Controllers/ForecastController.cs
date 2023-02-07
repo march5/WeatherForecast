@@ -23,20 +23,27 @@ namespace WeatherForecast.Data.Controllers
                     DailyTempAvg = new Dictionary<DateTime, double>()
                 };
 
+                var tempDict = new Dictionary<DateTime, double>();
+
                 for(int i = 0; i < forecastResponse.hourly.temperature_2m.Count(); i++)
                 {
                     var date = forecastResponse.hourly.time[i].Date;
 
-                    if (!dailyForecast.DailyTempAvg.ContainsKey(date))
+                    if (!tempDict.ContainsKey(date))
                     {
-                        dailyForecast.DailyTempAvg.Add(date, forecastResponse.hourly.temperature_2m[i]);
+                        tempDict.Add(date, forecastResponse.hourly.temperature_2m[i]);
                     }
                     else
                     {
-                        double avgTemp = dailyForecast.DailyTempAvg[date];
-                        avgTemp = (avgTemp + forecastResponse.hourly.temperature_2m[i]) / 2;
-                        dailyForecast.DailyTempAvg[date] = Math.Round(avgTemp, 2);
+                        double avgTemp = tempDict[date];
+                        avgTemp = avgTemp + forecastResponse.hourly.temperature_2m[i];
+                        tempDict[date] = avgTemp;
                     }
+                }
+
+                foreach(var x in tempDict)
+                {
+                    dailyForecast.DailyTempAvg.Add(x.Key, Math.Round(x.Value / 24, 2));
                 }
 
                 return dailyForecast;
